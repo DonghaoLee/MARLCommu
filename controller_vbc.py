@@ -1,3 +1,4 @@
+import numpy as np
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
@@ -29,6 +30,7 @@ class VDN_MAC:
         self.env_blender = Env_blender(64, self.n_actions, 196) #.cuda()
         self.delta1 = delta[0]
         self.delta2 = delta[1]
+        self.epsilon_greedy = 0.2
         self.hidden_states = None
         
     def choose_action(self, obs, test_mode=False):
@@ -41,6 +43,8 @@ class VDN_MAC:
             dummys = dummys * (std > self.delta2).unsqueeze(2)
         q_value = ori_q_value + dummys
         actions = q_value.argmax(dim=-1)
+        if not test_mode and np.random.rand() < self.epsilon_greedy:
+            actions = torch.randint(6, (4,))
         return actions.view(-1)
 
     def forward(self, ep_batch, test_mode=False):
