@@ -44,7 +44,7 @@ class VDN_MAC:
         q_value = ori_q_value + dummys
         actions = q_value.argmax(dim=-1)
         if not test_mode and np.random.rand() < self.epsilon_greedy:
-            actions = torch.randint(6, (4,))
+            actions = th.randint(6, (4,))
         return actions.view(-1)
 
     def forward(self, ep_batch, test_mode=False):
