@@ -2,7 +2,7 @@
 
 import torch
 
-def run(env, agent, max_length, test_mode = True, flag = False):
+def run(env, agent, max_length, test_mode = False, flag = False):
     # if test mode is true, communication is limited, choose with fully greedy method, return accumulated reward
     # if test mode is false, full communication, choose with epsilon greedy, return batch
 
@@ -23,7 +23,7 @@ def run(env, agent, max_length, test_mode = True, flag = False):
         action = agent.choose_action(obs.unsqueeze(0), test_mode = test_mode or flag)
         if (not test_mode) or flag:
             batch["obs"].append(obs)
-            batch["actions"].append(action)
+            batch["actions"].append(action.detach())
 
         obs, reward = env.step(action)
         if (not test_mode) or flag:
@@ -31,7 +31,7 @@ def run(env, agent, max_length, test_mode = True, flag = False):
         r += (1 - gamma) * (reward - r)
     
     #if not test_mode:
-    #    batch["obs"].append(obs)
+        #batch["obs"].append(obs)
 
     if test_mode:
         if flag:

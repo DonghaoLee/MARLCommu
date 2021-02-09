@@ -32,16 +32,18 @@ class VDN_MAC:
         self.delta2 = delta[1]
         self.epsilon_greedy = 0.2
         self.hidden_states = None
+
+        self.cuda_flag = False
         
     def choose_action(self, obs, test_mode=False):
         ori_q_value, hiddens = self.forward(obs) # hiddens.shape = 1, 4, 64
-        dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)) for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
+        dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
         sum_dummy = dummys.sum(1) # 1, 1, 6
         dummys = (sum_dummy - dummys) / (self.n_agents - 1)
         if test_mode:
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value + dummys
+        q_value = ori_q_value.detach() + dummys
         actions = q_value.argmax(dim=-1)
         if not test_mode and np.random.rand() < self.epsilon_greedy:
             actions = th.randint(6, (4,))
@@ -52,6 +54,8 @@ class VDN_MAC:
         batch = ep_batch.shape[0]
         agent_inputs = ep_batch.view(batch, self.n_agents, -1)
         agent_number = th.arange(self.n_agents).unsqueeze(0).expand(batch, -1).view(batch, self.n_agents, 1)
+        if self.cuda_flag:
+            agent_number = agent_number.cuda()
         agent_inputs = th.cat([agent_inputs, agent_number], dim=-1).view(batch * self.n_agents, -1)
         agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)  
         
@@ -59,6 +63,8 @@ class VDN_MAC:
 
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
+        if self.cuda_flag:
+            self.hidden_states = self.hidden_states.cuda()
 
     def parameters(self):
         return self.agent.parameters()
@@ -66,6 +72,16 @@ class VDN_MAC:
     def cuda(self):
         self.agent.cuda()
         self.env_blender.cuda()
+        self.cuda_flag = True
 
     def _build_agents(self, input_shape):
         self.agent = RNNAgent(input_shape, 64, self.n_actions)
+
+    def save(self, filename):
+        outfile = {'agent':self.agent.state_dict(), 'blender':self.env_blender.state_dict()}
+        th.save(outfile, filename)
+
+    def load(self, filename):
+        infile = th.load(filename)
+        self.agent.load_state_dict(infile['agent'])
+        self.env_blender.load_state_dict(infile['blender'])

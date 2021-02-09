@@ -2,7 +2,7 @@ import copy
 import torch as th
 import torch.nn as nn
 import numpy as np
-from torch.optim import RMSprop
+from torch.optim import RMSprop, SGD
 
 
 class VDNMixer(nn.Module):
@@ -25,10 +25,11 @@ class QLearner:
         self.params += list(self.mixer.parameters())
 
         self.params += list(self.mac.env_blender.parameters())
-        self.optimiser = RMSprop(params=self.params, lr=0.01, alpha=0.99, eps=0.00001)
+        #self.optimiser = RMSprop(params=self.params, lr=0.1, alpha=0.99, eps=0.00001)
+        self.optimiser = SGD(params=self.params, lr=0.01, momentum = 0.9)
 
         self.gamma = 0.98
-        self.normalization_const = 0.1
+        self.normalization_const = 10.
         self.grad_norm_clip = 10.
 
     def train(self, batch):

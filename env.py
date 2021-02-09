@@ -13,7 +13,9 @@ def parabolic_antenna(origin, target, pos):
     phi = np.arccos(costheta)
     gainDb = -min(20, 12*(phi / np.pi * 6)**2)
     gain = 10. ** (gainDb / 10.)
-    return gain * (10. / distance) ** 2.5
+    power = gain * (10. / distance) ** 2.
+    power = min(power, torch.tensor(500.))
+    return power
 
 class Env():
     def __init__(self, border, enbs, n_ues, noise):
@@ -31,7 +33,7 @@ class Env():
     def reset(self):
         self.time = 0
         self.ues_pos = torch.rand(self.n_ues, 2) * self.border
-        self.ues_patience = torch.zeros(self.n_ues)
+        self.MA_rate = torch.zeros(self.n_ues)
         self.inds = torch.tensor([[0, 1, 2, 3, 4] for _ in range(self.n_enbs)])
 
         obs = []
@@ -42,7 +44,7 @@ class Env():
         return obs
     
     def get_global_obs(self):
-        self.global_observation = torch.stack([torch.arange(self.n_ues), self.ues_pos[:, 0], self.ues_pos[:, 1], self.ues_patience], dim=1)
+        self.global_observation = torch.stack([torch.arange(self.n_ues), self.ues_pos[:, 0], self.ues_pos[:, 1], self.MA_rate], dim=1)
         return self.global_observation
 
     def get_agent_obs(self, enb_i):
@@ -55,7 +57,7 @@ class Env():
     def step(self, actions):
         # actions should be a torch tensor, with shape as [n_agents]
         # actions = actions.view(-1)
-        self.ues_patience *= self.patience_decay
+        self.MA_rate *= self.patience_decay
         plan = [self.inds[i][actions[i]]if actions[i]<5 else -1 for i in range(self.n_enbs)] # the i_th enb shoot at the plan[i]_th ue
         for i in range(self.n_enbs):
             total = self.noise
@@ -66,9 +68,9 @@ class Env():
                         total += signal
                         if i == j:
                             main_signal = signal
-                self.ues_patience[plan[i]] += main_signal / total    
+                self.MA_rate[plan[i]] += torch.log(1 + main_signal / (total - main_signal))
 
-        reward = self.ues_patience.mean()
+        reward = self.MA_rate.mean()
 
         # random walk
         self.ues_pos += (torch.rand(self.n_ues, 2) - 0.5) * self.rand_step_length
