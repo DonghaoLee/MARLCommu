@@ -44,7 +44,7 @@ class Env():
         return obs
     
     def get_global_obs(self):
-        self.global_observation = torch.stack([torch.arange(self.n_ues), self.ues_pos[:, 0], self.ues_pos[:, 1], self.MA_rate], dim=1)
+        self.global_observation = torch.stack([torch.arange(self.n_ues, dtype=torch.float32), self.ues_pos[:, 0], self.ues_pos[:, 1], self.MA_rate], dim=1)
         return self.global_observation
 
     def get_agent_obs(self, enb_i):
@@ -68,9 +68,9 @@ class Env():
                         total += signal
                         if i == j:
                             main_signal = signal
-                self.MA_rate[plan[i]] += torch.log(1 + main_signal / (total - main_signal))
+                self.MA_rate[plan[i]] += (1 - self.patience_decay) * torch.log(1 + main_signal / (total - main_signal))
 
-        reward = self.MA_rate.mean()
+        reward = torch.log(1 + self.MA_rate).mean()
 
         # random walk
         self.ues_pos += (torch.rand(self.n_ues, 2) - 0.5) * self.rand_step_length

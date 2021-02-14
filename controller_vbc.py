@@ -53,7 +53,7 @@ class VDN_MAC:
         # ep_batch.shape == [batch, n_agents, limited_n_ues, 4(No., x, y, patience)]
         batch = ep_batch.shape[0]
         agent_inputs = ep_batch.view(batch, self.n_agents, -1)
-        agent_number = th.arange(self.n_agents).unsqueeze(0).expand(batch, -1).view(batch, self.n_agents, 1)
+        agent_number = th.arange(self.n_agents, dtype=th.float32).unsqueeze(0).expand(batch, -1).view(batch, self.n_agents, 1)
         if self.cuda_flag:
             agent_number = agent_number.cuda()
         agent_inputs = th.cat([agent_inputs, agent_number], dim=-1).view(batch * self.n_agents, -1)

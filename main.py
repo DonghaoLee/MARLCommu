@@ -43,7 +43,7 @@ r_history = []
 
 t1 = time.time()
 
-for episode in range(400): # 1000
+for episode in range(40): # 1000
     print(episode)
     if episode % 400 == 0:
         epi_length += 400
