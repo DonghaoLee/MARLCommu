@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -8,7 +9,7 @@ class Env():
 
         self.time = 0
         self.appos = APgen(boarder,apNum,35)
-        self.apnum = apNum
+        self.apNum = apNum
         self.uepos = UEgen(self.appos,boarder,ueNum,7)
         self.boarder = boarder
         self.ueNum = ueNum
@@ -32,7 +33,7 @@ class Env():
     def reset(self):
 
         self.time = 0
-        self.uepos = UEgen(self.appos,self.oarder,self.ueNum,10)
+        self.uepos = UEgen(self.appos,self.boarder,self.ueNum,10)
         self.dists = getDist(self.appos,self.uepos)
         self.power = np.ones(self.dists.shape) * 10
         self.passGain = DSPloss(self.dists,shadowing_std=7)
@@ -46,6 +47,8 @@ class Env():
         self.SINR = getSINR(self.passGain, self.infPower, -134)
         self.pf = self.weight * np.log2(1 + self.SINR)
         self.accumulated_rate = [self.achRate]
+
+        return self.struct_obv()
 
 
     def global_obv(self):
@@ -66,8 +69,14 @@ class Env():
             ue_weights = self.weight[ue_id]
             ue_SINR = self.SINR[ue_id]
 
-
         return [ue_weights,ue_SINR]
+
+    def struct_obv(self, ):
+        struct_ob = []
+        for i in range(self.apNum):
+            struct_ob.append(torch.tensor(self.ap_obv(i), dtype=torch.float32).view(-1))
+        struct_ob = torch.stack(struct_ob)
+        return struct_ob
 
     def step(self, actions):
 
@@ -89,20 +98,14 @@ class Env():
             if ues[i] != None:
                 reward += self.weight[ues[i]] ** lambda_rew * self.achRate[ues[i]]
 
-
         if reward == 0:
             reward = - np.max(self.pf)
 
         self.accumulated_rate.append(self.achRate)
 
-        return self.global_obv(), reward
-
-
-
-
+        return self.struct_obv(), reward
 
     def ap_action(self, apID, ueID, power):
-
 
         ue_id = self.apUE[apID]
 
@@ -128,7 +131,7 @@ class Env():
     def plot_scheduling(self):
         # use power for size
         s = self.power[:,0] * 20
-        cm = np.linspace(1, self.apnum, self.apnum)
+        cm = np.linspace(1, self.apNum, self.apNum)
 
         plt.figure(figsize=(5,5))
         plt.scatter(self.appos[:,0], self.appos[:,1],marker="x", s = s, c = cm)
