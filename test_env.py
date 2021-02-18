@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
+import numpy as np
 from ENV import KYenv, DHenv
 
 def DHenv_random_action(obs):
@@ -8,6 +9,11 @@ def DHenv_random_action(obs):
 
 def KYenv_constant_action(obs):
     return np.array([[3,9],[1,5],[0,3],[2,10]])
+
+def KYenv_random_action(obs):
+    ues = torch.randint(6, (5,))
+    pows = torch.randint(10, (5,))
+    return torch.stack([ues, pows], dim=1)
 
 def env_test(env, n, m, action_func = None):
     assert action_func is not None
@@ -19,7 +25,7 @@ def env_test(env, n, m, action_func = None):
         r = 0
         for _ in range(m): # how long for one episode
             action = action_func(obs)
-            obs, reward = env1.step(action)
+            obs, reward = env.step(action)
             r += 0.02 * (reward - r)
         l.append(r)
     l = torch.tensor(l)
@@ -42,4 +48,4 @@ env2 = KYenv(4, 24, 500)
 
 env_test(env1, 20, 50, action_func=DHenv_random_action)
 
-env_test(env2, 20, 50, action_func=KYenv_constant_action)
+env_test(env2, 20, 50, action_func=KYenv_random_action)

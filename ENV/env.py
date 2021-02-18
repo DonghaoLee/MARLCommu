@@ -49,7 +49,7 @@ class Env():
     def reset(self):
 
         self.time = 0
-        self.uepos = UEgen(self.appos,self.boarder,self.ueNum,10)
+        self.uepos = UEgen(self.appos,self.boarder,self.ueNum,7)
         self.dists = getDist(self.appos,self.uepos)
         self.power = np.ones(self.dists.shape) * 0.01
         self.passGain = DSPloss(self.dists,shadowing_std=7)
@@ -123,7 +123,7 @@ class Env():
 
         self.accumulated_rate.append(self.achRate)
 
-        return self.struct_obv(), reward
+        return self.struct_obv(), torch.tensor(reward, dtype=torch.float32)
 
     def ap_action(self, apID, ueID, power):
 
