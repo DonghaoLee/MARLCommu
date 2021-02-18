@@ -40,7 +40,7 @@ class VDN_MAC:
         dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
         sum_dummy = dummys.sum(1) # 1, 1, 6
         dummys = (sum_dummy - dummys) / (self.n_agents - 1)
-        if test_mode:
+        if False: # test_mode
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
         q_value = ori_q_value.detach() + dummys

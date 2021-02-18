@@ -23,7 +23,7 @@ for _ in range(50):
         r = 0
         for _ in range(400):
             obs, reward = env.step(torch.tensor([0, 0, 0, 0]))
-            # obs, reward = env.step(torch.randint(6, (5,)))
+            # obs, reward = env.step(torch.randint(6, (4,)))
             r += 0.02 * (reward - r)
         l.append(r)
     l = torch.tensor(l)
