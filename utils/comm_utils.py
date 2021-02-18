@@ -18,22 +18,13 @@ def getDist(appos, uepos):
 
 def getAchRate(losses,power,noise):
 
-    if type(power) == np.ndarray:
-        flag = True
-    else:
-        flag = False
+    #power_real = 10 ** ((power - 30)/10)
 
-
-    power_real = 10 ** ((power - 30)/10)
-
-    losses_sqr = 10 ** (losses / 10)
+    losses_sqr = 10 ** (losses / 5)
 
     noise = 10 ** (noise/10)
 
-    if flag:
-            power_rec = losses_sqr * power_real
-    else:
-            power_rec = losses_sqr * power_real
+    power_rec = losses_sqr * power
 
     apID = np.argmax(losses,0)
 
@@ -42,7 +33,7 @@ def getAchRate(losses,power,noise):
     for i in range(losses.shape[1]):
 
         power_sig = power_rec[apID[i],i]
-        power_inf_noise = np.sum(power_rec[:,i], 0) - power_sig + noise
+        power_inf_noise = np.sum(power_rec[:,i]) - power_sig + noise
         acc_rate[i] = np.log2(1 + power_sig * 1/power_inf_noise)
 
     return acc_rate
@@ -51,11 +42,11 @@ def getInfpower(losses,power):
 
     apID = np.argmax(losses,0)
 
-    power_real = 10 ** ((power - 30)/10)
+    #power_real = 10 ** ((power - 30)/10)
 
-    losses_sqr = 10 ** (losses / 10)
+    losses_sqr = 10 ** (losses / 5)
 
-    power_rec = losses_sqr * power_real
+    power_rec = losses_sqr * power
 
     infpower = np.zeros(apID.shape)
 
@@ -71,7 +62,7 @@ def getSINR(losses,infpower,noise):
 
     power_real = 10 ** (-20/10)
 
-    losses_sqr = 10 ** (losses / 10)
+    losses_sqr = 10 ** (losses / 5)
 
     apID = np.argmax(losses,0)
 
@@ -181,8 +172,29 @@ def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], shadowing_std = 7 , **kwargs):
 
     return loss + shadowing + K0
 
-def rayleigh_fading():
-    pass
+def rayleigh_fading(x_dim, y_dim):
+
+    center_freq = 5.8e10 # RF carrier frequency in Hz
+    sig_len = x_dim*y_dim
+    N = 100 # number of sinusoids to sum
+
+    v = 1 # convert to m/s
+    fd = v*center_freq/3e8 # max Doppler shift
+    t = np.arange(0, 1, 1/sig_len) # time vector. (start, stop, step)
+    x = np.zeros(len(t))
+    y = np.zeros(len(t))
+    for i in range(N):
+        alpha = (np.random.rand() - 0.5) * 2 * np.pi
+        phi = (np.random.rand() - 0.5) * 2 * np.pi
+        x = x + np.random.randn() * np.cos(2 * np.pi * fd * t * np.cos(alpha) + phi)
+        y = y + np.random.randn() * np.sin(2 * np.pi * fd * t * np.cos(alpha) + phi)
+
+    z = (1/np.sqrt(N)) * (x + 1j*y) # this is what you would actually use when simulating the channel
+    z_mag = np.abs(z) # take magnitude for the sake of plotting
+    z_mag_dB = 10*np.log10(z_mag)
+    z_mag_dB = np.reshape(z_mag_dB,(x_dim,y_dim))
+
+    return z_mag_dB
 
 
 
@@ -202,8 +214,10 @@ if __name__ == "__main__":
     appos = APgen(500,4,35)
     uepos = UEgen(appos,500,24,19)
     dists = getDist(appos,uepos)
+    fading = rayleigh_fading(4,24)
 
     loss = DSPloss(dists,mode = "eg")
-    acc_rate = getAchRate(loss, 10, -134)
+    loss = loss + fading
+    acc_rate = getAchRate(loss, 0.01, -134)
     acc_rate.sort()
     print(acc_rate,sum(acc_rate))

@@ -26,4 +26,4 @@ z = (1/np.sqrt(N)) * (x + 1j*y) # this is what you would actually use when simul
 z_mag = np.abs(z) # take magnitude for the sake of plotting
 z_mag_dB = 10*np.log10(z_mag) # convert to dB
 
-print(np.min(z_mag_dB))
+print(z_mag_dB)
