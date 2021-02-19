@@ -5,14 +5,14 @@ import numpy as np
 from ENV import KYenv, DHenv
 
 def DHenv_random_action(obs):
-    return torch.randint(6, (5,))
+    return torch.randint(6, (4,))
 
 def KYenv_constant_action(obs):
     return np.array([[3,9],[1,5],[0,3],[2,10]])
 
 def KYenv_random_action(obs):
-    ues = torch.randint(6, (5,))
-    pows = torch.randint(10, (5,))
+    ues = torch.randint(6, (4,))
+    pows = torch.randint(10, (4,))
     return torch.stack([ues, pows], dim=1)
 
 def env_test(env, n, m, action_func = None):
@@ -23,6 +23,7 @@ def env_test(env, n, m, action_func = None):
     l = []
     for _ in range(n): # how many episodes
         r = 0
+        obs = env.reset()
         for _ in range(m): # how long for one episode
             action = action_func(obs)
             obs, reward = env.step(action)
