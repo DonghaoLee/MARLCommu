@@ -21,6 +21,9 @@ def run(env, agent, max_length, test_mode = False, flag = False):
 
     for t in range(max_length):
         action = agent.choose_action(obs.unsqueeze(0), test_mode = test_mode or flag)
+        if not test_mode:
+            if torch.rand(1) < 0.2:
+                action = torch.randint(30, [4,]) # 30 is heuristic
         if (not test_mode) or flag:
             batch["obs"].append(obs)
             batch["actions"].append(action.detach())

@@ -1,5 +1,6 @@
 import time
 import torch
+import numpy as np
 from multiprocessing import Pool
 
 from run import run
@@ -24,5 +25,6 @@ class ParallelRun():
 
     def randrun(self, seed):
         torch.random.manual_seed(seed)
+        np.random.seed(seed)
         b = run(self.env, self.agent, self.max_length, test_mode = self.test_mode)
         return b

@@ -4,31 +4,24 @@ import time
 import torch
 from multiprocessing import Pool
 
-from env import Env
+from ENV import KYenv
 from controller_vbc import VDN_MAC
 from q_learner_vdn_vbc import QLearner
 from run import run
 from parallel_run_kit import ParallelRun
 
-env = Env(border=torch.Tensor([40, 40]), 
-          enbs = torch.Tensor([[10, 10, 10], 
-                               [10, 30, 10], 
-                               [10, 10, 30],
-                               [10, 30, 30]]), 
-          n_ues = 10, 
-          noise = 5
-          )
+env = KYenv(4, 24, 500)
 
 filename = 't1.pth'
 cuda_flag = True
 
-controller = VDN_MAC()
+controller = VDN_MAC(n_actions = 6 * 5, input_shape = 11)
 controller.save('state_dicts/' + filename)
 learner = QLearner(controller)
 if cuda_flag:
     learner.cuda()
 
-test_controller = VDN_MAC()
+test_controller = VDN_MAC(n_actions = 6 * 5, input_shape = 11)
 test_controller.load('state_dicts/' + filename)
 for par in test_controller.env_blender.parameters():
     par.requires_grad = False
