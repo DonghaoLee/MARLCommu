@@ -1,34 +1,52 @@
 # -*- coding: utf-8 -*-
 
 import torch
-from env import Env
+import numpy as np
+from ENV import KYenv, DHenv
 
-env = Env(border=torch.Tensor([40, 40]), 
-          enbs = torch.Tensor([[10, 10, 10], 
-                               [10, 30, 10], 
-                               [10, 10, 30],
-                               [10, 30, 30]]), 
-          n_ues = 10, 
-          noise = 5
-          )
+def DHenv_random_action(obs):
+    return torch.randint(6, (4,))
 
-env.get_global_obs()
-for i in range(4):
-    env.get_agent_obs(i)
+def KYenv_constant_action(obs):
+    return np.array([[3,9],[1,5],[0,3],[2,10]])
 
-out_l = []
-for _ in range(50):
+def KYenv_random_action(obs):
+    ues = torch.randint(6, (4,))
+    pows = torch.randint(10, (4,))
+    return torch.stack([ues, pows], dim=1)
+
+def env_test(env, n, m, action_func = None):
+    assert action_func is not None
+    out_l = []
+    obs = env.reset()
+    print('obs.shape: ', obs.shape)
     l = []
-    for _ in range(50):
+    for _ in range(n): # how many episodes
         r = 0
-        for _ in range(400):
-            obs, reward = env.step(torch.tensor([0, 0, 0, 0]))
-            # obs, reward = env.step(torch.randint(6, (5,)))
+        obs = env.reset()
+        for _ in range(m): # how long for one episode
+            action = action_func(obs)
+            obs, reward = env.step(action)
             r += 0.02 * (reward - r)
         l.append(r)
     l = torch.tensor(l)
-    #torch.save(l, "test_r")
-    print(l.mean())
-    out_l.append(l.mean())
-print(out_l)
-torch.save(torch.stack(out_l), "test_r_50")
+    print('Reward: ', l)
+    print('mean: ', l.mean())
+    print('var: ', l.var())
+
+
+env1 = DHenv(
+             border=torch.Tensor([40, 40]), 
+             enbs = torch.Tensor([[10, 10, 10], 
+                                 [10, 30, 10], 
+                                 [10, 10, 30],
+                                 [10, 30, 30]]), 
+             n_ues = 10, 
+             noise = 0.1
+            )
+
+env2 = KYenv(4, 24, 500)
+
+env_test(env1, 20, 50, action_func=DHenv_random_action)
+
+env_test(env2, 20, 50, action_func=KYenv_random_action)
