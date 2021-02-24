@@ -11,9 +11,10 @@ def KYenv_constant_action(obs):
     return np.array([[3,9],[1,5],[0,3],[2,10]])
 
 def KYenv_random_action(obs):
-    ues = torch.randint(6, (4,))
-    pows = torch.randint(10, (4,))
-    return torch.stack([ues, pows], dim=1)
+    #ues = torch.randint(5, (4,))
+    #pows = torch.randint(6, (4,))
+    #return torch.stack([ues, pows], dim=1)
+    return torch.randint(30, (4,))
 
 def env_test(env, n, m, action_func = None):
     assert action_func is not None
@@ -49,4 +50,4 @@ env2 = KYenv(4, 24, 500)
 
 env_test(env1, 20, 50, action_func=DHenv_random_action)
 
-env_test(env2, 20, 50, action_func=KYenv_random_action)
+env_test(env2, 20, 500, action_func=KYenv_random_action)

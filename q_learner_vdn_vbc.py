@@ -2,7 +2,7 @@ import copy
 import torch as th
 import torch.nn as nn
 import numpy as np
-from torch.optim import RMSprop, SGD
+from torch.optim import RMSprop, SGD, Adam
 
 
 class VDNMixer(nn.Module):
@@ -25,12 +25,18 @@ class QLearner:
         self.params += list(self.mixer.parameters())
 
         self.params += list(self.mac.env_blender.parameters())
-        #self.optimiser = RMSprop(params=self.params, lr=0.1, alpha=0.99, eps=0.00001)
-        self.optimiser = SGD(params=self.params, lr=0.001, momentum=0.9)
+        self.optimiser = RMSprop(params=self.params, lr=0.001, alpha=0.9, eps=0.0000001)
+        #self.optimiser = SGD(params=self.params, lr=0.001, momentum=0.95)
+        #self.optimiser = Adam(params=self.params, lr = 0.001, betas=[0.9, 0.999], eps=1e-8)
+        #self.lr = 0.001
+        #self.set_sgd()
 
         self.gamma = 0.98
-        self.normalization_const = 10.
-        self.grad_norm_clip = 10.
+        self.normalization_const = 0.1
+        self.grad_norm_clip = 5000.
+
+    def set_sgd(self, lr):
+        self.optimiser = SGD(params=self.params, lr=lr, momentum=0.95)
 
     def train(self, batch):
         # batch["obs"].shape=[batch, t, obs]
@@ -62,7 +68,7 @@ class QLearner:
                                            agent1.view((batch_size,1,self.mac.n_actions)),
                                            agent2.view((batch_size,1,self.mac.n_actions)),
                                            agent3.view((batch_size,1,self.mac.n_actions))),1)
-            agent_outs = agent_local_outputs + agent_global_outputs
+            agent_outs = agent_local_outputs #+ agent_global_outputs
             difference = agent_global_outputs 
             mac_out.append(agent_outs)
             difference_out.append(difference)
@@ -95,7 +101,7 @@ class QLearner:
                                                   agent1.view((batch_size,1,self.mac.n_actions)),
                                                   agent2.view((batch_size,1,self.mac.n_actions)),
                                                   agent3.view((batch_size,1,self.mac.n_actions))),1)
-            target_agent_outs = target_agent_local_outputs + target_agent_global_outputs
+            target_agent_outs = target_agent_local_outputs #+ target_agent_global_outputs
             target_mac_out.append(target_agent_outs)
           
         # We don't need the first timesteps Q-Value estimate for calculating targets
@@ -120,14 +126,20 @@ class QLearner:
         td_error = chosen_action_qvals - targets.detach()
 
         # Normal L2 loss, take mean over actual data
-        loss = (td_error ** 2).mean() + self.normalization_const * avg_difference
+        loss = (td_error ** 2).mean() #+ self.normalization_const * avg_difference
 
         # Optimise
         self.optimiser.zero_grad()
         loss.backward()
         print(loss)
-        # grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.grad_norm_clip)
+        grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.grad_norm_clip)
+        #if grad_norm > 10 * self.grad_norm_clip:
+        #    self.lr = self.lr / 10.
+        #    print('lr changed to ', self.lr)
+        #    self.set_sgd()
+        print(grad_norm)
         self.optimiser.step()
+        return loss, grad_norm
 
     def _update_targets(self):
         self.target_mac.load_state(self.mac)

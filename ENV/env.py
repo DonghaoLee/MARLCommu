@@ -101,7 +101,7 @@ class Env():
 
         # HERE IS A HEURISTIC TRANSFORM
         if len(actions.shape) == 1:
-            actions = torch.stack([actions % 5, actions // 5], dim=1)
+            actions = torch.stack([actions % 5, 0.01 * actions // 5], dim=1)
 
         for i in range(self.appos.shape[0]):
             ues.append(self.ap_action(i,actions[int(i),0], actions[int(i),1]))

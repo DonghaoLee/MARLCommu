@@ -10,11 +10,13 @@ class Env_blender(nn.Module):
     def __init__(self, input_shape, output_shape, hidden_shape):
         super(Env_blender, self).__init__()
         self.fc1 = nn.Linear(input_shape, hidden_shape)
-        self.fc2 = nn.Linear(hidden_shape, output_shape)
+        self.fc2 = nn.Linear(hidden_shape, hidden_shape)
+        self.fc3 = nn.Linear(hidden_shape, output_shape)
 
     def forward(self, input_mac):
         hidden = F.elu(self.fc1(input_mac))
-        output_mac = self.fc2(hidden)
+        hidden = F.elu(self.fc2(hidden))
+        output_mac = self.fc3(hidden)
         return output_mac
     
 # Agent Network
@@ -43,7 +45,7 @@ class VDN_MAC:
         if test_mode:
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value.detach() + dummys
+        q_value = ori_q_value.detach() #+ dummys
         actions = q_value.argmax(dim=-1)
         if not test_mode and np.random.rand() < self.epsilon_greedy:
             actions = th.randint(6, (4,))
