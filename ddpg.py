@@ -65,8 +65,8 @@ class DDPG(object):
 
         # Prepare for the target q batch
         next_q_values = self.critic_target([
-            next_state_batch,
-            self.actor_target(next_state_batch),
+            next_state_batch.cuda(),
+            self.actor_target(next_state_batch.cuda()),
         ])
         next_q_values.volatile=False
 
@@ -76,7 +76,7 @@ class DDPG(object):
         # Critic update
         self.critic.zero_grad()
 
-        q_batch = self.critic([ state_batch, to_tensor(action_batch) ])
+        q_batch = self.critic([ state_batch.cuda(), to_tensor(action_batch) ])
 
         value_loss = criterion(q_batch, target_q_batch)
         value_loss.backward()
@@ -86,8 +86,8 @@ class DDPG(object):
         self.actor.zero_grad()
 
         policy_loss = self.critic([
-            state_batch,
-            self.actor(state_batch)
+            state_batch.cuda(),
+            self.actor(state_batch.cuda())
         ])
 
         policy_loss = policy_loss.mean()
