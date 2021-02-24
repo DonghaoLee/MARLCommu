@@ -43,7 +43,7 @@ for i in range(2000):
     act = np.abs(act)
     act = np.reshape(act,(4,2))
     act[:,0] = np.round(act[:,0] * 4)
-    act[:,1] = act[:,1] * 0.05
+    act[:,1] = act[:,1] * 0.01
 
     if np.any(np.isnan(act)):
         continue

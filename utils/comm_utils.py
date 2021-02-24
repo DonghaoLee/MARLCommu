@@ -16,17 +16,13 @@ def getDist(appos, uepos):
 
     return dists
 
-def getAchRate(losses,power,noise):
-
-    #power_real = 10 ** ((power - 30)/10)
+def getAchRate(losses,power,noise,apID):
 
     losses_sqr = 10 ** (losses / 5)
 
     noise = 10 ** (noise/10)
 
     power_rec = losses_sqr * power
-
-    apID = np.argmax(losses,0)
 
     acc_rate = np.zeros((losses.shape[1],))
 
@@ -38,11 +34,8 @@ def getAchRate(losses,power,noise):
 
     return acc_rate
 
-def getInfpower(losses,power):
+def getInfpower(losses,power,apID):
 
-    apID = np.argmax(losses,0)
-
-    #power_real = 10 ** ((power - 30)/10)
 
     losses_sqr = 10 ** (losses / 5)
 
@@ -56,15 +49,13 @@ def getInfpower(losses,power):
 
     return  infpower
 
-def getSINR(losses,infpower,noise):
+def getSINR(losses,infpower,noise, apID):
 
     SINR = np.zeros(infpower.shape)
 
     power_real = 10 ** (-20/10)
 
     losses_sqr = 10 ** (losses / 5)
-
-    apID = np.argmax(losses,0)
 
     noise = 10 ** (noise/10)
 
@@ -133,7 +124,7 @@ def UEgen(appos,area_range,uenum,min_dist,paint = False ):
 
     return uepos
 
-def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], shadowing_std = 7 , **kwargs):
+def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], **kwargs):
     """
 
     :param dists: array of distances
@@ -168,9 +159,16 @@ def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], shadowing_std = 7 , **kwargs):
     loss[~mask] = -10 * alpha0 * np.log10(dists[~mask])
     loss[mask] = 10 * (alpha1 - alpha0) * np.log10(Rc) - 10 * alpha1 * np.log10(dists[mask])
 
+
+
+    return loss + K0
+
+
+def log_norm_shadowing(xdim,ydim,shadowing_std):
+
     shadowing = np.random.randn(xdim,ydim) * shadowing_std
 
-    return loss + shadowing + K0
+    return shadowing
 
 def rayleigh_fading(x_dim, y_dim):
 
@@ -217,7 +215,9 @@ if __name__ == "__main__":
     fading = rayleigh_fading(4,24)
 
     loss = DSPloss(dists,mode = "eg")
-    loss = loss + fading
-    acc_rate = getAchRate(loss, 0.01, -134)
+    shadowing = log_norm_shadowing(4,24,7)
+    apID = np.argmax(loss,0)
+    loss = loss + fading + shadowing
+    acc_rate = getAchRate(loss, 0.01, -134,apID)
     acc_rate.sort()
     print(acc_rate,sum(acc_rate))
