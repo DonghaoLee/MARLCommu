@@ -22,19 +22,28 @@ agent = DDPG(57,8,seed=5,hidden1=400,
 
 rewards = []
 v_losses = []
+R_sum = []
+R_5per = []
 
-for i in range(500):
+
+for j in range(100):
+
+    act = np.array([[0,0.01],[0,0.01],[0,0.01],[0,0.01]])
+
+    env.step(actions=act)
+
+for i in range(2000):
 
     if np.random.rand() < agent.epsilon:
         act = agent.random_action()
     else:
-        act = agent.select_action(env.global_obv().float())
+        act = agent.select_action(env.global_obv().float().cuda())
 
 
     act = np.abs(act)
     act = np.reshape(act,(4,2))
     act[:,0] = np.round(act[:,0] * 4)
-    act[:,1] = act[:,1] * 0.01
+    act[:,1] = act[:,1] * 0.05
 
     if np.any(np.isnan(act)):
         continue
@@ -46,7 +55,22 @@ for i in range(500):
         print(f"Step{i-99} | critic loss: {v_loss}| actor loss: {p_loss}| reward: {r}"
               f"| R_sum: {env.get_Rsum()}| R_5per: {env.get_R5per()} \n")
 
-    rewards.append(r)
 
+    print(f"Current action : {act}")
+
+
+    rewards.append(r)
+    R_sum.append(env.get_Rsum())
+    R_5per.append(env.get_R5per())
+
+
+plt.figure()
+plt.plot(R_sum)
+
+plt.figure()
 plt.plot(rewards)
+
+
+plt.figure()
+plt.plot(R_5per)
 plt.show()
