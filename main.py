@@ -43,7 +43,7 @@ r_history = []
 
 t1 = time.time()
 
-for episode in range(40): # 1000
+for episode in range(100): # 1000
     print(episode)
     if episode % 400 == 0:
         epi_length += 400
@@ -59,6 +59,9 @@ for episode in range(40): # 1000
     batch = batch[0]
 
     learner.train(batch)
+    
+    if episode % 10 == 9:
+        learner._update_targets()
 
     controller.save('state_dicts/' + filename)
     test_controller.load('state_dicts/' + filename)

@@ -43,10 +43,8 @@ class VDN_MAC:
         if False: # test_mode
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value.detach() + dummys
+        q_value = ori_q_value.detach()# + dummys
         actions = q_value.argmax(dim=-1)
-        if not test_mode and np.random.rand() < self.epsilon_greedy:
-            actions = th.randint(6, (4,))
         return actions.view(-1)
 
     def forward(self, ep_batch, test_mode=False):
@@ -85,3 +83,8 @@ class VDN_MAC:
         infile = th.load(filename)
         self.agent.load_state_dict(infile['agent'])
         self.env_blender.load_state_dict(infile['blender'])
+
+    
+    def load_state(self, m):
+        self.agent.load_state_dict(m.agent.state_dict())
+        self.env_blender.load_state_dict(m.env_blender.state_dict())
