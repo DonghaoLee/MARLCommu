@@ -133,12 +133,10 @@ class QLearner:
         loss.backward()
         print(loss)
         grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.grad_norm_clip)
-        #if grad_norm > 10 * self.grad_norm_clip:
-        #    self.lr = self.lr / 10.
-        #    print('lr changed to ', self.lr)
-        #    self.set_sgd()
         print(grad_norm)
         self.optimiser.step()
+        return loss, grad_norm
+
         return loss, grad_norm
 
     def _update_targets(self):

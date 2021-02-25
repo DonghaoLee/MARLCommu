@@ -28,7 +28,7 @@ class Env():
         self.reset()
 
         self.patience_decay = 0.9
-        self.rand_step_length = 2.0
+        self.rand_step_length = 0.0 # 2.0
 
     def reset(self):
         self.time = 0
@@ -70,7 +70,9 @@ class Env():
                             main_signal = signal
                 self.MA_rate[plan[i]] += (1 - self.patience_decay) * torch.log(1 + main_signal / (total - main_signal))
 
-        reward = torch.log(1 + self.MA_rate).mean()
+        #reward = torch.log(1 + self.MA_rate).mean()
+        reward, _ = torch.stack([self.MA_rate, 3 * torch.ones_like(self.MA_rate)]).min(dim = 0)
+        reward = reward.mean()
 
         # random walk
         self.ues_pos += (torch.rand(self.n_ues, 2) - 0.5) * self.rand_step_length
