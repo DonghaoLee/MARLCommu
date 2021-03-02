@@ -52,28 +52,29 @@ class QLearner:
         for t in range(batch.shape[1]):
             agent_local_outputs, hidden_states = self.mac.forward(batch[:, t])
             dummy0 = self.mac.env_blender(hidden_states[:,0,:].view(batch_size,-1))
-            dummy1 = self.mac.env_blender(hidden_states[:,1,:].view(batch_size,-1))
-            dummy2 = self.mac.env_blender(hidden_states[:,2,:].view(batch_size,-1))
-            dummy3 = self.mac.env_blender(hidden_states[:,3,:].view(batch_size,-1)) 
+            #dummy1 = self.mac.env_blender(hidden_states[:,1,:].view(batch_size,-1))
+            #dummy2 = self.mac.env_blender(hidden_states[:,2,:].view(batch_size,-1))
+            #dummy3 = self.mac.env_blender(hidden_states[:,3,:].view(batch_size,-1)) 
             
-            agent0 = (dummy1 + dummy2 + dummy3)/3.0
-            agent1 = (dummy0 + dummy2 + dummy3)/3.0
-            agent2 = (dummy0 + dummy1 + dummy3)/3.0
-            agent3 = (dummy0 + dummy1 + dummy2)/3.0
+            #agent0 = (dummy1 + dummy2 + dummy3)/3.0
+            #agent1 = (dummy0 + dummy2 + dummy3)/3.0
+            #agent2 = (dummy0 + dummy1 + dummy3)/3.0
+            #agent3 = (dummy0 + dummy1 + dummy2)/3.0
     
-            agent_global_outputs = th.cat((agent0.view((batch_size,1,6)),agent1.view((batch_size,1,6)),agent2.view((batch_size,1,6)),agent3.view((batch_size,1,6))),1)
+            #agent_global_outputs = th.cat((agent0.view((batch_size,1,6)),agent1.view((batch_size,1,6)),agent2.view((batch_size,1,6)),agent3.view((batch_size,1,6))),1)
+            #agent_global_outputs = agent0.view(batch_size,1,6)
             agent_outs = agent_local_outputs #+ agent_global_outputs
-            difference = agent_global_outputs 
+            #difference = agent_global_outputs 
             mac_out.append(agent_outs)
-            difference_out.append(difference)
+            #difference_out.append(difference)
 
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
-        difference_out = th.stack(difference_out, dim=1)  # Concat over time
+        #difference_out = th.stack(difference_out, dim=1)  # Concat over time
 
-        difference_out = th.std(difference_out,dim = 3).sum()
+        #difference_out = th.std(difference_out,dim = 3).sum()
         # Pick the Q-Values for the actions taken by each agent
         chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
-        avg_difference = difference_out.mean()/((agent_outs.shape[0]*agent_outs.shape[1]*agent_outs.shape[2]*batch.shape[1]))
+        #avg_difference = difference_out.mean()/((agent_outs.shape[0]*agent_outs.shape[1]*agent_outs.shape[2]*batch.shape[1]))
 
         # Calculate the Q-Values necessary for the target
         target_mac_out = []
@@ -82,19 +83,19 @@ class QLearner:
             target_agent_local_outputs, target_hidden_states = self.target_mac.forward(batch[:, t])
     
             dummy0 = self.target_mac.env_blender(target_hidden_states[:,0,:].view(batch_size,-1))
-            dummy1 = self.target_mac.env_blender(target_hidden_states[:,1,:].view(batch_size,-1))
-            dummy2 = self.target_mac.env_blender(target_hidden_states[:,2,:].view(batch_size,-1))
-            dummy3 = self.target_mac.env_blender(target_hidden_states[:,3,:].view(batch_size,-1))
+            #dummy1 = self.target_mac.env_blender(target_hidden_states[:,1,:].view(batch_size,-1))
+            #dummy2 = self.target_mac.env_blender(target_hidden_states[:,2,:].view(batch_size,-1))
+            #dummy3 = self.target_mac.env_blender(target_hidden_states[:,3,:].view(batch_size,-1))
 
-            target_agent0 = (dummy1 + dummy2 + dummy3)/3.0
-            target_agent1 = (dummy0 + dummy2 + dummy3)/3.0
-            target_agent2 = (dummy0 + dummy1 + dummy3)/3.0
-            target_agent3 = (dummy0 + dummy1 + dummy2)/3.0
+            #target_agent0 = (dummy1 + dummy2 + dummy3)/3.0
+            #target_agent1 = (dummy0 + dummy2 + dummy3)/3.0
+            #target_agent2 = (dummy0 + dummy1 + dummy3)/3.0
+            #target_agent3 = (dummy0 + dummy1 + dummy2)/3.0
 
-            target_agent_global_outputs = th.cat((target_agent0.view((batch_size,1,6)),
-                                                  target_agent1.view((batch_size,1,6)),
-                                                  target_agent2.view((batch_size,1,6)),
-                                                  target_agent3.view((batch_size,1,6))),1)
+            #target_agent_global_outputs = th.cat((target_agent0.view((batch_size,1,6)),
+            #                                      target_agent1.view((batch_size,1,6)),
+            #                                      target_agent2.view((batch_size,1,6)),
+            #                                      target_agent3.view((batch_size,1,6))),1)
             target_agent_outs = target_agent_local_outputs #+ target_agent_global_outputs
             target_mac_out.append(target_agent_outs)
           

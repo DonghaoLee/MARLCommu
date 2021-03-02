@@ -19,7 +19,7 @@ class Env_blender(nn.Module):
     
 # Agent Network
 class VDN_MAC:
-    def __init__(self, n_agents = 4, n_actions = 6, input_shape = 15, delta = th.tensor([10.0, 10.0])):
+    def __init__(self, n_agents = 1, n_actions = 6, input_shape = 15, delta = th.tensor([10.0, 10.0])):
         self.n_agents = n_agents
         self.n_actions = n_actions
         self.input_shape = input_shape
@@ -27,28 +27,25 @@ class VDN_MAC:
         #self.agent_output_type = args.agent_output_type
 
         #self.action_selector = action_REGISTRY[args.action_selector](args)
-        self.env_blender = Env_blender(20, self.n_actions, 196) #.cuda()
+        self.env_blender = Env_blender(64, self.n_actions, 196) #.cuda()
         self.delta1 = delta[0]
         self.delta2 = delta[1]
-        self.epsilon_greedy = 0.2
         self.hidden_states = None
 
-        self.agent_bias = th.tensor([[10., 10.], [30., 10.], [10., 30.], [30., 30.]]) / 40.
+        self.agent_bias = th.tensor([[10., 10.]]) / 20.
 
         self.cuda_flag = False
         
     def choose_action(self, obs, test_mode=False):
         ori_q_value, hiddens = self.forward(obs) # hiddens.shape = 1, 4, hidden_length
-        dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
-        sum_dummy = dummys.sum(1) # 1, 1, 6
-        dummys = (sum_dummy - dummys) / (self.n_agents - 1)
+        #dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
+        #sum_dummy = dummys.sum(1) # 1, 1, 6
+        #dummys = (sum_dummy - dummys) / (self.n_agents - 1)
         if False: # test_mode
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value.detach() + dummys
+        q_value = ori_q_value.detach()# + dummys
         actions = q_value.argmax(dim=-1)
-        if not test_mode and np.random.rand() < self.epsilon_greedy:
-            actions = th.randint(6, (4,))
         return actions.view(-1)
 
     def forward(self, ep_batch, test_mode=False):
@@ -59,7 +56,7 @@ class VDN_MAC:
         #if self.cuda_flag:
         #    agent_number = agent_number.cuda()
         #agent_inputs = th.cat([agent_inputs, agent_number], dim=-1).view(batch * self.n_agents, -1)
-        for i in range(4):
+        for i in range(self.n_agents):
             agent_inputs[:, i, :, 0] -= self.agent_bias[i][0]
             agent_inputs[:, i, :, 1] -= self.agent_bias[i][1]
         agent_inputs = agent_inputs.reshape(batch * self.n_agents, -1)
@@ -81,7 +78,7 @@ class VDN_MAC:
         self.cuda_flag = True
 
     def _build_agents(self, input_shape):
-        self.agent = RNNAgent(input_shape, 20, self.n_actions)
+        self.agent = RNNAgent(input_shape, 64, self.n_actions)
 
     def save(self, filename):
         outfile = {'agent':self.agent.state_dict(), 'blender':self.env_blender.state_dict()}
