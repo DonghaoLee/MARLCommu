@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from run import run
 
 class ParallelRun():
-    def __init__(self, env, agent, max_length, test_mode=False, flag=False):
+    def __init__(self, env, agent, max_length, explore_epsilon=0.2, test_mode=False, flag=False):
         self.env = env
         self.agent = agent
         self.max_length = max_length
@@ -24,5 +24,5 @@ class ParallelRun():
 
     def randrun(self, seed):
         torch.random.manual_seed(seed)
-        b = run(self.env, self.agent, self.max_length, test_mode = self.test_mode)
+        b = run(self.env, self.agent, self.max_length, explore_epsilon=0.9, test_mode = self.test_mode)
         return b

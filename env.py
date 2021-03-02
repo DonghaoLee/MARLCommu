@@ -44,12 +44,14 @@ class Env():
         return obs
     
     def get_global_obs(self):
-        self.global_observation = torch.stack([torch.arange(self.n_ues, dtype=torch.float32), self.ues_pos[:, 0], self.ues_pos[:, 1], self.MA_rate], dim=1)
+        self.global_observation = torch.stack([self.ues_pos[:, 0] / self.border[0], 
+                                               self.ues_pos[:, 1] / self.border[1], 
+                                               self.MA_rate], dim=1)
         return self.global_observation
 
     def get_agent_obs(self, enb_i):
-        dist = ((self.global_observation[:, 1:3] - self.enbs_pos[enb_i]) ** 2).sum(1)
-        inds = torch.argsort(dist)[:5]
+        dist = ((self.global_observation[:, 1:3] * self.border - self.enbs_pos[enb_i]) ** 2).sum(1)
+        inds = torch.argsort(dist)[:5].sort().values
         self.inds[enb_i] = inds
         obs = self.global_observation[inds]
         return obs
