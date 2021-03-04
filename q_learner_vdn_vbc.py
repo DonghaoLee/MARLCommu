@@ -1,6 +1,7 @@
 import copy
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from torch.optim import RMSprop, SGD
 
@@ -9,8 +10,49 @@ class VDNMixer(nn.Module):
     def __init__(self):
         super(VDNMixer, self).__init__()
 
-    def forward(self, agent_qs):
+    def forward(self, agent_qs, states):
         return th.sum(agent_qs, dim=2, keepdim=True)
+
+class QMixer(nn.Module):
+    def __init__(self, n_agents = 4, state_shape = 30, mixing_embed_dim = 10):
+        super(QMixer, self).__init__()
+
+        self.n_agents = n_agents
+        self.state_dim = state_shape #int(np.prod(state_shape))
+
+        self.embed_dim = mixing_embed_dim
+
+        self.hyper_w_1 = nn.Linear(self.state_dim, self.embed_dim * self.n_agents)
+        self.hyper_w_final = nn.Linear(self.state_dim, self.embed_dim)
+
+        # State dependent bias for hidden layer
+        self.hyper_b_1 = nn.Linear(self.state_dim, self.embed_dim)
+
+        # V(s) instead of a bias for the last layers
+        self.V = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
+                               nn.ReLU(),
+                               nn.Linear(self.embed_dim, 1))
+
+    def forward(self, agent_qs, states):
+        bs = agent_qs.size(0) # batch_size
+        states = states.reshape(-1, self.state_dim)
+        agent_qs = agent_qs.view(-1, 1, self.n_agents)
+        # First layer
+        w1 = th.abs(self.hyper_w_1(states))
+        b1 = self.hyper_b_1(states)
+        w1 = w1.view(-1, self.n_agents, self.embed_dim)
+        b1 = b1.view(-1, 1, self.embed_dim)
+        hidden = F.elu(th.bmm(agent_qs, w1) + b1)
+        # Second layer
+        w_final = th.abs(self.hyper_w_final(states))
+        w_final = w_final.view(-1, self.embed_dim, 1)
+        # State-dependent bias
+        v = self.V(states).view(-1, 1, 1)
+        # Compute final output
+        y = th.bmm(hidden, w_final) + v
+        # Reshape and return
+        q_tot = y.view(bs, -1, 1)
+        return q_tot
 
 
 class QLearner:
@@ -21,6 +63,7 @@ class QLearner:
         self.params = list(mac.parameters())
 
         self.mixer = VDNMixer()
+        #self.mixer = QMixer()
         self.target_mixer = copy.deepcopy(self.mixer)
         self.params += list(self.mixer.parameters())
 
@@ -41,6 +84,7 @@ class QLearner:
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1].unsqueeze(-1)
+        states = batch["state"]
         batch = batch["obs"]
         batch_size = batch.shape[0]
     
@@ -110,8 +154,8 @@ class QLearner:
         #target_max_qvals = target_mac_out.max(dim=3)[0]
 
         # Mix
-        chosen_action_qvals = self.mixer(chosen_action_qvals).squeeze(-1)
-        target_max_qvals = self.target_mixer(target_max_qvals).squeeze(-1)
+        chosen_action_qvals = self.mixer(chosen_action_qvals, states[:, :-1]).squeeze(-1)
+        target_max_qvals = self.target_mixer(target_max_qvals, states[:, 1:]).squeeze(-1)
         #target_max_qvals[]
 
         # Calculate 1-step Q-Learning targets
@@ -126,9 +170,9 @@ class QLearner:
         # Optimise
         self.optimiser.zero_grad()
         loss.backward()
-        print(loss)
+        #print(loss)
         grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.grad_norm_clip)
-        print(grad_norm)
+        #print(grad_norm)
         self.optimiser.step()
         return loss, grad_norm
 

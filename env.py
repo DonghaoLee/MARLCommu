@@ -50,7 +50,7 @@ class Env():
         return self.global_observation
 
     def get_agent_obs(self, enb_i):
-        dist = ((self.global_observation[:, 1:3] * self.border - self.enbs_pos[enb_i]) ** 2).sum(1)
+        dist = ((self.global_observation[:, 0:2] * self.border - self.enbs_pos[enb_i]) ** 2).sum(1)
         inds = torch.argsort(dist)[:5].sort().values
         self.inds[enb_i] = inds
         obs = self.global_observation[inds]
@@ -74,13 +74,13 @@ class Env():
 
         #reward = torch.log(1 + self.MA_rate).mean()
         reward, _ = torch.stack([self.MA_rate, 3 * torch.ones_like(self.MA_rate)]).min(dim = 0)
-        reward = reward.mean()
+        reward = torch.exp(3. * reward.mean())
 
         # random walk
-        self.ues_pos += (torch.rand(self.n_ues, 2) - 0.5) * self.rand_step_length
-        flag_mat1 = self.ues_pos > self.border
-        flag_mat2 = self.ues_pos < 0
-        self.ues_pos = self.ues_pos - 2 * flag_mat2 * self.ues_pos + 2 * flag_mat1 * (self.border - self.ues_pos)
+        #self.ues_pos += (torch.rand(self.n_ues, 2) - 0.5) * self.rand_step_length
+        #flag_mat1 = self.ues_pos > self.border
+        #flag_mat2 = self.ues_pos < 0
+        #self.ues_pos = self.ues_pos - 2 * flag_mat2 * self.ues_pos + 2 * flag_mat1 * (self.border - self.ues_pos)
 
         # rebuild obs
         obs = []

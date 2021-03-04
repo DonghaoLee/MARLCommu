@@ -27,7 +27,7 @@ class VDN_MAC:
         #self.agent_output_type = args.agent_output_type
 
         #self.action_selector = action_REGISTRY[args.action_selector](args)
-        self.env_blender = Env_blender(20, self.n_actions, 196) #.cuda()
+        self.env_blender = Env_blender(64, self.n_actions, 196) #.cuda()
         self.delta1 = delta[0]
         self.delta2 = delta[1]
         self.epsilon_greedy = 0.2
@@ -45,7 +45,7 @@ class VDN_MAC:
         if False: # test_mode
             std = th.std(dummys, dim = 2)
             dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value.detach() + dummys
+        q_value = ori_q_value.detach() #+ dummys
         actions = q_value.argmax(dim=-1)
         if not test_mode and np.random.rand() < self.epsilon_greedy:
             actions = th.randint(6, (4,))
@@ -81,7 +81,7 @@ class VDN_MAC:
         self.cuda_flag = True
 
     def _build_agents(self, input_shape):
-        self.agent = RNNAgent(input_shape, 20, self.n_actions)
+        self.agent = RNNAgent(input_shape, 64, self.n_actions)
 
     def save(self, filename):
         outfile = {'agent':self.agent.state_dict(), 'blender':self.env_blender.state_dict()}
