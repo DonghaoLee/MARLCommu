@@ -88,5 +88,7 @@ class Env():
         for i in range(self.n_enbs):
             obs.append(self.get_agent_obs(i))
         obs = torch.stack(obs, dim=0)
+
+        self.time += 1
         
         return obs, reward

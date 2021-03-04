@@ -10,16 +10,13 @@ from q_learner_vdn_vbc import QLearner
 from run import run
 from parallel_run_kit import ParallelRun
 
-env = Env(border=torch.Tensor([40, 40]), 
-          enbs = torch.Tensor([[10, 10, 10], 
-                               [10, 30, 10], 
-                               [10, 10, 30],
-                               [10, 30, 30]]), 
-          n_ues = 10, 
-          noise = 5
+env = Env(border=torch.Tensor([20, 20]), 
+          enbs = torch.Tensor([[10, 10, 10]]), 
+          n_ues = 5, 
+          noise = 0.01
           )
 
-filename = 't1.pth'
+filename = 't2.pth'
 cuda_flag = True
 
 controller = VDN_MAC()

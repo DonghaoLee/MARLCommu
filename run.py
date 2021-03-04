@@ -24,7 +24,7 @@ def run(env, agent, max_length, explore_epsilon=0.2, test_mode = False):
         action = agent.choose_action(obs.unsqueeze(0), test_mode = test_mode)
         if (not test_mode):
             if torch.rand(1) < explore_epsilon:
-                action = torch.randint(6, (4,))
+                action = torch.randint(6, action.shape)
         if (not test_mode):
             batch["obs"].append(obs)
             batch["actions"].append(action.detach())
