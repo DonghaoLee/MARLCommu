@@ -63,6 +63,11 @@ class DDPG(object):
         state_batch, action_batch, reward_batch, \
         next_state_batch, terminal_batch = self.memory.sample_and_split(self.batch_size)
 
+
+        reward_mean = np.mean(reward_batch)
+        reward_std = np.std(reward_batch)
+        reward_batch = (reward_batch - reward_mean)/reward_std
+
         # Prepare for the target q batch
         next_q_values = self.critic_target([
             next_state_batch.cuda(),
@@ -85,7 +90,7 @@ class DDPG(object):
         # Actor update
         self.actor.zero_grad()
 
-        policy_loss = self.critic([
+        policy_loss = -self.critic([
             state_batch.cuda(),
             self.actor(state_batch.cuda())
         ])
@@ -118,7 +123,7 @@ class DDPG(object):
             self.s_t = s_t1
 
     def random_action(self):
-        action = np.abs(np.random.uniform(0.,1.,self.nb_actions))
+        action = np.random.uniform(-1.,1.,self.nb_actions)
         self.a_t = action
         self.epsilon -= self.depsilon
         return action
@@ -146,19 +151,19 @@ class DDPG(object):
             torch.load('{}/actor.pkl'.format(output))
         )
 
-        self.critic.load_state_dict(
+        self.critic.loadself_state_dict(
             torch.load('{}/critic.pkl'.format(output))
         )
 
 
-    def save_model(self,output):
+    def save_model(self,output, step="origin"):
         torch.save(
             self.actor.state_dict(),
-            '{}/actor.pkl'.format(output)
+            f'{output}/actor_{step}.pkl'
         )
         torch.save(
             self.critic.state_dict(),
-            '{}/critic.pkl'.format(output)
+            f'{output}/critic_{step}.pkl'
         )
 
     def seed(self,s):

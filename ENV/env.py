@@ -1,7 +1,10 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 import copy
+from ddpg import DDPG
+
 
 from utils.comm_utils import *
 
@@ -28,8 +31,11 @@ def state_normalization(states,state_max,state_min, Q):
     normalized_states = copy.deepcopy(states)
     for i in range(len(states)):
 
-        pos = np.where(state_stages <= states[i])[0][-1]
-        normalized_states[i] = normalized_stages[pos]
+        pos = np.where(state_stages <= states[i])[0]
+        if len(pos) == 0:
+            normalized_states[i] = 1/2
+        else:
+            normalized_states[i] = normalized_stages[pos[-1]]
 
 
     return normalized_states
@@ -38,13 +44,17 @@ def state_normalization(states,state_max,state_min, Q):
 
 
 class Env():
-    def __init__(self,apNum,ueNum,boarder):
+    def __init__(self,apNum,ueNum,boarder,random_seed = None):
 
         self.apNum = apNum
         self.ueNum = ueNum
         self.boarder = boarder
         self.alphaI = 0.05
         self.alphaR = 0.01
+
+        if random_seed != None:
+            np.random.seed(random_seed)
+            random.seed(random_seed)
 
 
         self.reset()
@@ -75,13 +85,13 @@ class Env():
         self.apUE = dict()
         for i in range(self.apNum):
             self.apUE[i] = np.where(self.apID == i)[0]
-        self.achRate = getAchRate(self.passGain + self.fading + self.shadowing,self.power,-174,self.apID)
+        self.achRate = getAchRate(self.passGain + self.fading + self.shadowing,self.power,-134,self.apID)
         self.weight = 1/self.achRate
         self.max_weight = self.weight.max()
         self.min_weight = self.weight.min()
         self.normalized_weight = state_normalization(self.weight,self.max_weight,self.min_weight,20)
-        self.infPower = getInfpower(self.passGain + self.fading + self.shadowing, self.power , self.apID)
-        self.SINR = getSINR(self.passGain + self.fading + self.shadowing, self.infPower, -174, self.apID)
+        self.infPower = getInfpower(self.passGain + self.fading + self.shadowing, 0.01 , self.apID)
+        self.SINR = getSINR(self.passGain + self.fading + self.shadowing, self.infPower, -134, self.apID)
         self.SINRdb = 10 * np.log10(self.SINR)
         self.max_SINR = self.SINRdb.max()
         self.min_SINR = self.SINRdb.min()
@@ -105,6 +115,21 @@ class Env():
                                torch.tensor([self.reward],dtype=torch.float32)),0)
 
         return global_ob
+
+
+    def soft_reset(self):
+
+        self.power = np.ones(self.dists.shape) * 0.01
+        self.time = 0
+        self.achRate = getAchRate(self.passGain + self.fading + self.shadowing, self.power, -134, self.apID)
+        self.weight = 1 / self.achRate
+        self.normalized_weight = state_normalization(self.weight, self.max_weight, self.min_weight, 20)
+        self.infPower = getInfpower(self.passGain + self.fading + self.shadowing, 0.01, self.apID)
+        self.SINR = getSINR(self.passGain + self.fading + self.shadowing, self.infPower, -134, self.apID)
+        self.SINRdb = 10 * np.log10(self.SINR)
+        self.normalized_SINR = state_normalization(self.SINRdb, self.max_SINR, self.min_SINR, 20)
+        self.pf = self.weight * np.log2(1 + self.SINR)
+        self.accumulated_rate = self.achRate
 
     def ap_obv(self, apID):
 
@@ -145,7 +170,12 @@ class Env():
 
 
         self.fading = rayleigh_fading(self.apNum,self.ueNum)
-        instRate = getAchRate(self.passGain + self.fading + self.shadowing,self.power,-174, self.apID)
+        instRate = getAchRate(self.passGain + self.fading + self.shadowing,self.power,-134, self.apID)
+        mask = np.zeros(instRate.shape)
+        for i in range(len(ues)):
+            if ues[i] != None:
+                mask[ues[i]] = 1
+        instRate *= mask
         self.achRate = (1 - self.alphaR) * self.achRate + self.alphaR * instRate
         self.weight = 1/self.achRate
         if self.weight.max() > self.max_weight:
@@ -154,8 +184,8 @@ class Env():
             self.min_weight = self.weight.min()
         self.normalized_weight = state_normalization(self.weight,self.max_weight,self.min_weight,20)
         self.infPower = (1 - self.alphaI) * self.infPower + \
-                        self.alphaI * getInfpower(self.passGain + self.fading + self.shadowing, self.power, self.apID)
-        self.SINR = getSINR(self.passGain + self.fading + self.shadowing, self.infPower, -174, self.apID)
+                        self.alphaI * getInfpower(self.passGain + self.fading + self.shadowing, 0.01, self.apID)
+        self.SINR = getSINR(self.passGain + self.fading + self.shadowing, self.infPower, -134, self.apID)
         self.SINRdb = 10 * np.log10(self.SINR)
         if self.SINRdb.max() > self.max_SINR:
             self.max_SINR = self.SINRdb.max()
@@ -168,7 +198,6 @@ class Env():
         lambda_rew = 0.8
 
         for i in range(len(ues)):
-
             if ues[i] != None:
                 reward += self.weight[ues[i]] ** lambda_rew * instRate[ues[i]]
 
@@ -187,38 +216,48 @@ class Env():
     def ap_action(self, apID, ueID, power):
 
         ue_id = self.apUE[apID]
+        ue_pf = self.pf[ue_id]
+        ue_ord = np.argsort(ue_pf)[::-1]
+        ue_id = ue_id[ue_ord]
 
-        if ueID >= len(ue_id):
+
+        if ueID >= len(ue_id) or ueID == 5:
             ue = None
             self.power[apID,:] = 0
         else:
             ue = ue_id[int(ueID)]
-            for i in ue_id:
-                self.power[apID,i] = power * parabolic_antenna(self.appos[apID,:],\
-                                                               self.uepos[ue,:],\
-                                                               self.uepos[i,:])
+            self.power[apID,:] = power
+            # for i in ue_id:
+            #     self.power[apID,i] = power * parabolic_antenna(self.appos[apID,:],\
+            #                                                    self.uepos[ue,:],\
+            #                                                    self.uepos[i,:])
+
+
+
 
         return ue
 
     def get_Rsum(self):
-        return np.sum(self.accumulated_rate)/self.time
+        return np.sum(self.accumulated_rate/self.time)
 
     def get_R5per(self):
 
-        pos = round(len(self.accumulated_rate) * 0.95)
+        pos = round(len(self.accumulated_rate) * 0.95) - 1
         sorted_rate = np.sort(self.accumulated_rate)[::-1]
 
         return sorted_rate[pos]/self.time
 
     def plot_scheduling(self):
         # use power for size
-        s = self.power[:,0] * 20
+        s = np.max(self.power,axis=1)
+        s = s/np.max(s) * 100
         cm = np.linspace(1, self.apNum, self.apNum)
 
         plt.figure(figsize=(5,5))
         plt.scatter(self.appos[:,0], self.appos[:,1],marker="x", s = s, c = cm)
 
-        plt.scatter(self.uepos[:,0],self.uepos[:,1],marker="o", s = self.achRate * 20, c = self.apID)
+        s_rate = self.achRate / np.max(self.achRate) * 100
+        plt.scatter(self.uepos[:,0],self.uepos[:,1],marker="o", s = s_rate, c = self.apID)
         plt.xlim([0,self.boarder])
         plt.ylim([0,self.boarder])
         plt.show()
@@ -230,21 +269,49 @@ if __name__ == "__main__":
 
     env = Env(4,24,500)
     apUE = env.apUE
+    Rsum = {"full-reuse":[],"TDM":[],"DDPG":[]}
+    R5per = {"full-reuse":[],"TDM":[],"DDPG":[]}
+    rewards = {"full-reuse":[],"TDM":[],"DDPG":[]}
 
-    for i in range(2000):
-        best_ue = []
-        for i in range(4):
-            ueID = apUE[i]
-            uePF = env.pf[ueID]
-            sorted_ue = np.argsort(uePF)
-            best_ue.append(sorted_ue[0])
-        actions = np.array([[best_ue[0],0.01],[best_ue[1],0.01],[best_ue[2],0.01],[best_ue[3],0.01]])
+    agent = DDPG(57, 8, seed=5, hidden1=400,
+                 hidden2=300, bsize=64,
+                 rate=0.00001, prate=0.000001,
+                 rmsize=int(60000), window_length=int(1),
+                 tau=0.001, init_w=0.003,
+                 epsilon=10000, discount=0.99)
+
+    agent.load_weights("../models/new")
+    agent.eval()
+
+    for i in range(2001):
+        act = agent.select_action(env.global_obv().float().cuda())
+
+        act = (act + 1) / 2
+        act = np.reshape(act, (4, 2))
+        act[:, 0] = np.round(act[:, 0] * 5)
+        act[:, 1] = np.round(act[:, 1] * 5) * 0.002
+        print(act)
+        reward = env.step(act)
+
+        Rsum["DDPG"].append(env.get_Rsum())
+        R5per["DDPG"].append(env.get_R5per())
+        rewards["DDPG"].append(reward[1].data)
+
+
+    env.soft_reset()
+
+
+    for i in range(2001):
+
+        actions = np.array([[0,0.01],[0,0.01],[0,0.01],[0,0.01]])
         reward = env.step(actions)
+        Rsum["full-reuse"].append(env.get_Rsum())
+        R5per["full-reuse"].append(env.get_R5per())
+        rewards["full-reuse"].append(reward[1].data)
 
-    print(env.get_R5per(),env.get_Rsum())
     apID = env.apID
-    env.reset()
-    for i in range(2000):
+    env.soft_reset()
+    for i in range(2001):
 
         pos = i % len(apID)
         ap = apID[pos]
@@ -255,8 +322,38 @@ if __name__ == "__main__":
         actions[ap,1] = 0.01
 
         reward = env.step(actions)
-    #
-    print(env.get_R5per(),env.get_Rsum())
+        Rsum["TDM"].append(env.get_Rsum())
+        R5per["TDM"].append(env.get_R5per())
+        rewards["TDM"].append(reward[1].data)
+
+    env.soft_reset()
+
+
+
+
+
+    plt.figure()
+    plt.plot(Rsum["full-reuse"][100:])
+    plt.plot(Rsum["TDM"][100:])
+    plt.plot(Rsum["DDPG"][100:])
+    plt.legend(["full-reuse","TDM","DDPG"])
+    plt.grid()
+
+    plt.figure()
+    plt.plot(R5per["full-reuse"][100:])
+    plt.plot(R5per["TDM"][100:])
+    plt.plot(R5per["DDPG"][100:])
+    plt.legend(["full-reuse", "TDM", "DDPG"])
+    plt.grid()
+
+    plt.figure()
+    plt.plot(rewards["full-reuse"])
+    plt.plot(rewards["TDM"])
+    plt.plot(rewards["DDPG"])
+    plt.legend(["full-reuse", "TDM", "DDPG"])
+    plt.grid()
+    plt.show()
+
 
 
 

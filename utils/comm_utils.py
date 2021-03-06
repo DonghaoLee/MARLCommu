@@ -18,7 +18,7 @@ def getDist(appos, uepos):
 
 def getAchRate(losses,power,noise,apID):
 
-    losses_sqr = 10 ** (losses / 5)
+    losses_sqr = 10 ** (losses / 10)
 
     noise = 10 ** (noise/10)
 
@@ -37,7 +37,7 @@ def getAchRate(losses,power,noise,apID):
 def getInfpower(losses,power,apID):
 
 
-    losses_sqr = 10 ** (losses / 5)
+    losses_sqr = 10 ** (losses / 10)
 
     power_rec = losses_sqr * power
 
@@ -55,7 +55,7 @@ def getSINR(losses,infpower,noise, apID):
 
     power_real = 10 ** (-20/10)
 
-    losses_sqr = 10 ** (losses / 5)
+    losses_sqr = 10 ** (losses / 10)
 
     noise = 10 ** (noise/10)
 
@@ -148,9 +148,11 @@ def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], **kwargs):
     alpha0 = conf[3]
     alpha1 = conf[4]
 
-    Rc = 4*ht*hr / lambdac
+    #Rc = 4*ht*hr / lambdac
+    Rc = 100
     # antenna gain is set to 10 dBi each
-    K0 = 20 * math.log10(lambdac/(4*math.pi)) + 20
+    #K0 = 20 * math.log10(lambdac/(4*math.pi)) + 20
+    K0 = 39
 
     mask = dists > Rc
     xdim,ydim = dists.shape
@@ -161,7 +163,7 @@ def DSPloss(dists, conf=[5.8*10e8,3,2,2,4], **kwargs):
 
 
 
-    return loss + K0
+    return loss - K0
 
 
 def log_norm_shadowing(xdim,ydim,shadowing_std):
