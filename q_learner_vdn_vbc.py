@@ -14,7 +14,7 @@ class VDNMixer(nn.Module):
         return th.sum(agent_qs, dim=2, keepdim=True)
 
 class QMixer(nn.Module):
-    def __init__(self, n_agents = 4, state_shape = 30, mixing_embed_dim = 10):
+    def __init__(self, n_agents = 4, state_shape = 21, mixing_embed_dim = 10):
         super(QMixer, self).__init__()
 
         self.n_agents = n_agents
@@ -62,8 +62,8 @@ class QLearner:
         
         self.params = list(mac.parameters())
 
-        self.mixer = VDNMixer()
-        #self.mixer = QMixer()
+        #self.mixer = VDNMixer()
+        self.mixer = QMixer(n_agents=self.mac.n_agents)
         self.target_mixer = copy.deepcopy(self.mixer)
         self.params += list(self.mixer.parameters())
 
@@ -95,15 +95,10 @@ class QLearner:
         self.mac.init_hidden(batch_size)
         for t in range(batch.shape[1]):
             agent_local_outputs, hidden_states = self.mac.forward(batch[:, t])
-            dummy0 = self.mac.env_blender(hidden_states[:,0,:].view(batch_size,-1))
-            #dummy1 = self.mac.env_blender(hidden_states[:,1,:].view(batch_size,-1))
-            #dummy2 = self.mac.env_blender(hidden_states[:,2,:].view(batch_size,-1))
-            #dummy3 = self.mac.env_blender(hidden_states[:,3,:].view(batch_size,-1)) 
+            #dummy = torch.stack([self.mac.env_blender(hidden_states[:,i,:].view(batch_size,-1)) for i in range(self.mac.n_agents)], dim = 0)
             
-            #agent0 = (dummy1 + dummy2 + dummy3)/3.0
-            #agent1 = (dummy0 + dummy2 + dummy3)/3.0
-            #agent2 = (dummy0 + dummy1 + dummy3)/3.0
-            #agent3 = (dummy0 + dummy1 + dummy2)/3.0
+            #message_sum = dummy.sum(0)
+            #agent_message = -(dummy - message_sum) / (self.mac.n_agents - 1.0)
     
             #agent_global_outputs = th.cat((agent0.view((batch_size,1,6)),agent1.view((batch_size,1,6)),agent2.view((batch_size,1,6)),agent3.view((batch_size,1,6))),1)
             #agent_global_outputs = agent0.view(batch_size,1,6)
@@ -125,16 +120,10 @@ class QLearner:
         self.target_mac.init_hidden(batch_size)
         for t in range(batch.shape[1]):
             target_agent_local_outputs, target_hidden_states = self.target_mac.forward(batch[:, t])
-    
-            dummy0 = self.target_mac.env_blender(target_hidden_states[:,0,:].view(batch_size,-1))
-            #dummy1 = self.target_mac.env_blender(target_hidden_states[:,1,:].view(batch_size,-1))
-            #dummy2 = self.target_mac.env_blender(target_hidden_states[:,2,:].view(batch_size,-1))
-            #dummy3 = self.target_mac.env_blender(target_hidden_states[:,3,:].view(batch_size,-1))
-
-            #target_agent0 = (dummy1 + dummy2 + dummy3)/3.0
-            #target_agent1 = (dummy0 + dummy2 + dummy3)/3.0
-            #target_agent2 = (dummy0 + dummy1 + dummy3)/3.0
-            #target_agent3 = (dummy0 + dummy1 + dummy2)/3.0
+            #dummy = torch.stack([self.mac.env_blender(hidden_states[:,i,:].view(batch_size,-1)) for i in range(self.mac.n_agents)], dim = 0)
+            
+            #message_sum = dummy.sum(0)
+            #agent_message = -(dummy - message_sum) / (self.mac.n_agents - 1.0)
 
             #target_agent_global_outputs = th.cat((target_agent0.view((batch_size,1,6)),
             #                                      target_agent1.view((batch_size,1,6)),

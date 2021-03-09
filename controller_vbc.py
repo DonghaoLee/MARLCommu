@@ -32,8 +32,6 @@ class VDN_MAC:
         self.delta2 = delta[1]
         self.hidden_states = None
 
-        self.agent_bias = th.tensor([[10., 10.]]) / 20.
-
         self.cuda_flag = False
         
     def choose_action(self, obs, test_mode=False):
@@ -56,9 +54,6 @@ class VDN_MAC:
         #if self.cuda_flag:
         #    agent_number = agent_number.cuda()
         #agent_inputs = th.cat([agent_inputs, agent_number], dim=-1).view(batch * self.n_agents, -1)
-        for i in range(self.n_agents):
-            agent_inputs[:, i, :, 0] -= self.agent_bias[i][0]
-            agent_inputs[:, i, :, 1] -= self.agent_bias[i][1]
         agent_inputs = agent_inputs.reshape(batch * self.n_agents, -1)
         agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)  
         
