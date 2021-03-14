@@ -14,7 +14,7 @@ class VDNMixer(nn.Module):
         return th.sum(agent_qs, dim=2, keepdim=True)
 
 class QMixer(nn.Module):
-    def __init__(self, n_agents = 4, state_shape = 21, mixing_embed_dim = 10):
+    def __init__(self, n_agents = 4, state_shape = 30, mixing_embed_dim = 10):
         super(QMixer, self).__init__()
 
         self.n_agents = n_agents

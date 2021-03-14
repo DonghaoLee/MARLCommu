@@ -18,11 +18,12 @@ def parabolic_antenna(origin, target, pos):
     return power
 
 class Env():
-    def __init__(self, border, enbs, n_ues, noise):
+    def __init__(self, border, enbs, ues, noise):
         self.border = border
         self.enbs_pw = enbs[:, 0]
         self.enbs_pos = enbs[:, 1:]
-        self.n_ues = n_ues
+        self.n_ues = ues.shape[0]
+        self.origin_ues_pos = ues
         self.n_enbs = enbs.shape[0]
         self.noise = noise
         self.reset()
@@ -32,7 +33,7 @@ class Env():
 
     def reset(self):
         self.time = 0
-        self.ues_pos = torch.rand(self.n_ues, 2) * self.border
+        self.ues_pos = self.origin_ues_pos.clone() # torch.rand(self.n_ues, 2) * self.border
         self.MA_rate = torch.zeros(self.n_ues)
         self.inds = torch.tensor([[0, 1, 2, 3, 4] for _ in range(self.n_enbs)])
 

@@ -12,7 +12,7 @@ from parallel_run_kit import ParallelRun
 
 env = Env(border=torch.Tensor([20, 20]), 
           enbs = torch.Tensor([[10, 10, 10]]), 
-          n_ues = 5, 
+          ues = torch.rand(10, 2) * torch.Tensor([20, 20]), 
           noise = 0.01
           )
 
