@@ -1,6 +1,8 @@
 __pycache__/
+photos/
 test_r
 test_r_50
 batch
 rhistory
+*.pth
 *.ipynb

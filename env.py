@@ -3,7 +3,10 @@ import torch
 import numpy as np
 
 def parabolic_antenna(origin, target, pos):
-    distance = np.sqrt(((origin - pos) ** 2).sum())
+    '''
+        a parabolic antenna at  origin  aims at  target
+        return the gain in Db for the position  pos  
+    '''
     costheta = ((target - origin) ** 2 + (pos - origin) ** 2 - (target - pos) ** 2).sum() /\
                (2 * np.sqrt(((target - origin) ** 2).sum() * ((pos - origin) ** 2).sum()))
     if costheta > 1:
@@ -12,10 +15,30 @@ def parabolic_antenna(origin, target, pos):
         costheta = torch.tensor(-1.)
     phi = np.arccos(costheta)
     gainDb = -min(20, 12*(phi / np.pi * 6)**2)
-    gain = 10. ** (gainDb / 10.)
-    power = gain * (10. / distance) ** 2.
-    power = min(power, torch.tensor(500.))
-    return power
+    return gainDb
+
+def pathloss(origin, pos):
+    '''
+        UE to macro BS - UE is inside a house
+    '''
+    L_ow = 15
+    d0 = 10
+
+    distance = torch.sqrt(((origin - pos) ** 2).sum())
+    if distance < d0:
+        distance = d0
+
+    pl_db = 15.3 + 37.6 * torch.log10(distance) + L_ow
+
+    return pl_db
+
+def cal_sig(origin, target, pos, pw):
+    '''
+        ?
+    '''
+    db = parabolic_antenna(origin, target, pos) - pathloss(origin, pos)
+    linear = 10 ** (0.1 * db)
+    return pw * linear
 
 class Env():
     def __init__(self, border, enbs, ues, noise, rw=0.0):
@@ -75,11 +98,12 @@ class Env():
             if plan[i]!= -1:
                 for j in range(self.n_enbs):
                     if plan[j] != -1:
-                        signal = parabolic_antenna(self.enbs_pos[j], self.ues_pos[plan[j]], self.ues_pos[plan[i]]) * self.enbs_pw[j]
+                        signal = sig_cal(self.enbs_pos[j], self.ues_pos[plan[j]], self.ues_pos[plan[i]], self.enbs_pw[j])
                         total += signal
                         if i == j:
                             main_signal = signal
                 signal_list[plan[i]].append((1 - self.patience_decay) * torch.log(1 + main_signal / (total - main_signal)))
+        
         for i in range(self.n_ues):
             if len(signal_list[i]) != 0:
                 self.MA_rate[i] += torch.max(torch.tensor(signal_list[i]))
@@ -116,5 +140,5 @@ class Env():
         plt.plot(t_ues[:, 0], t_ues[:, 1], '.', markersize=t_size)
         if serve_on:
             for i in range(self.n_enbs):
-                plt()
+                plt.plot()
         plt.show()
