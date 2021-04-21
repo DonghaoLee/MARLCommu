@@ -27,22 +27,29 @@ class VDN_MAC:
         #self.agent_output_type = args.agent_output_type
 
         #self.action_selector = action_REGISTRY[args.action_selector](args)
-        self.env_blender = Env_blender(64, self.n_actions, 196) #.cuda()
+        self.env_blender = Env_blender(64, 10, 196) #.cuda()
         self.delta1 = delta[0]
         self.delta2 = delta[1]
         self.hidden_states = None
 
         self.cuda_flag = False
         
-    def choose_action(self, obs, test_mode=False):
+    def choose_action(self, obs, test_mode=False, commu=False):
+        mask = obs[:, :, :, 0] # [batch(1), agent, limited_n_ues]
         ori_q_value, hiddens = self.forward(obs) # hiddens.shape = 1, 4, hidden_length
-        #dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 6
-        #sum_dummy = dummys.sum(1) # 1, 1, 6
-        #dummys = (sum_dummy - dummys) / (self.n_agents - 1)
-        if False: # test_mode
-            std = th.std(dummys, dim = 2)
-            dummys = dummys * (std > self.delta2).unsqueeze(2)
-        q_value = ori_q_value.detach() #+ dummys
+        q_value = ori_q_value.detach()
+        if commu:
+            dummys = th.stack([self.env_blender(hiddens[:, i, :].view(1, -1)).detach() for i in range(self.n_agents)], dim=1) # dummys.shape = 1, 4, 10
+            if False: # test_mode
+                std = th.std(dummys, dim = 2)
+                dummys = dummys * (std > self.delta2).unsqueeze(2)
+            sum_dummy = dummys.sum(1) # 1, 1, 10
+            dummys = (sum_dummy - dummys) / (self.n_agents - 1) # 1, 4, 10
+            self.temp_dummys = dummys
+            dummys = th.gather(dummys, -1, mask.long())
+            dummys = th.cat([dummys, th.zeros(dummys.shape[:-1]).unsqueeze(-1)], -1)
+            q_value += dummys
+        self.temp_q_value = q_value
         actions = q_value.argmax(dim=-1)
         return actions.view(-1)
 
@@ -50,6 +57,7 @@ class VDN_MAC:
         # ep_batch.shape == [batch, n_agents, limited_n_ues, 4(No., x, y, patience)]
         batch = ep_batch.shape[0]
         agent_inputs = ep_batch.clone()
+        agent_inputs = agent_inputs[:, :, :, 1:]
         #agent_number = th.arange(self.n_agents, dtype=th.float32).unsqueeze(0).expand(batch, -1).view(batch, self.n_agents, 1)
         #if self.cuda_flag:
         #    agent_number = agent_number.cuda()

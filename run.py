@@ -2,7 +2,7 @@
 
 import torch
 
-def run(env, agent, max_length, explore_epsilon=0.2, test_mode = False):
+def run(env, agent, max_length, explore_epsilon=0.2, test_mode = False, commu = False):
     # if test mode is true, communication is limited, choose with fully greedy method, return accumulated reward
     # if test mode is false, full communication, choose with epsilon greedy, return batch
 
@@ -21,7 +21,7 @@ def run(env, agent, max_length, explore_epsilon=0.2, test_mode = False):
     r = 0
 
     for t in range(max_length):
-        action = agent.choose_action(obs.unsqueeze(0), test_mode = test_mode)
+        action = agent.choose_action(obs.unsqueeze(0), test_mode = test_mode, commu = commu)
         if (not test_mode):
             if torch.rand(1) < explore_epsilon:
                 action = torch.randint(6, action.shape)
