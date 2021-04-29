@@ -22,7 +22,7 @@ def pathloss(origin, pos):
         UE to macro BS - UE is inside a house
     '''
     L_ow = 15
-    d0 = 10
+    d0 = torch.tensor(10.)
 
     distance = torch.sqrt(((origin - pos) ** 2).sum())
     if distance < d0:
@@ -92,17 +92,20 @@ class Env():
         # actions = actions.view(-1)
         self.MA_rate *= self.patience_decay
         plan = [self.inds[i][actions[i]]if actions[i]<5 else -1 for i in range(self.n_enbs)] # the i_th enb shoot at the plan[i]_th ue
+        #print(plan)
         signal_list = [[] for _ in range(self.n_ues)]
         for i in range(self.n_enbs):
             total = self.noise
             if plan[i]!= -1:
                 for j in range(self.n_enbs):
                     if plan[j] != -1:
-                        signal = sig_cal(self.enbs_pos[j], self.ues_pos[plan[j]], self.ues_pos[plan[i]], self.enbs_pw[j])
+                        signal = cal_sig(self.enbs_pos[j], self.ues_pos[plan[j]], self.ues_pos[plan[i]], self.enbs_pw[j])
+                        #print(j, "->", i, ": ", signal)
                         total += signal
                         if i == j:
                             main_signal = signal
                 signal_list[plan[i]].append((1 - self.patience_decay) * torch.log(1 + main_signal / (total - main_signal)))
+                #print(main_signal, total - main_signal, self.noise)
         
         for i in range(self.n_ues):
             if len(signal_list[i]) != 0:
