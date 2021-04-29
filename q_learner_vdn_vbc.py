@@ -56,7 +56,7 @@ class QMixer(nn.Module):
 
 
 class QLearner:
-    def __init__(self, mac, n_ues=10):
+    def __init__(self, mac, n_ues=10, info_reg=10.):
         self.mac = mac
         self.target_mac = copy.deepcopy(mac)
         
@@ -72,7 +72,7 @@ class QLearner:
         self.optimiser = SGD(params=self.params, lr=0.01, momentum = 0.9)
 
         self.gamma = 0.0 #0.98
-        self.normalization_const = 10.
+        self.normalization_const = info_reg
         self.grad_norm_clip = 500.
 
     def set_sgd(self, lr, mmt=0.0):

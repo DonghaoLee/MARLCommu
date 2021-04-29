@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 def parabolic_antenna(origin, target, pos):
     '''
@@ -21,14 +23,14 @@ def pathloss(origin, pos):
     '''
         UE to macro BS - UE is inside a house
     '''
-    L_ow = 15
-    d0 = torch.tensor(10.)
+    L_ow = 15.
+    d0 = torch.tensor(1.)
 
     distance = torch.sqrt(((origin - pos) ** 2).sum())
     if distance < d0:
         distance = d0
 
-    pl_db = 15.3 + 37.6 * torch.log10(distance) + L_ow
+    pl_db = 38.46 + 20 * torch.log10(distance) + 0.7 * distance + L_ow
 
     return pl_db
 
