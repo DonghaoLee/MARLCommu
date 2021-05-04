@@ -183,14 +183,14 @@ class SequentialMemory(Memory):
     def sample_and_split(self, batch_size, batch_idxs=None):
         # experiences = self.sample(batch_size, batch_idxs)
         #
+        if batch_idxs == None:
+            batch_idxs = sample_batch_indexes(1, self.nb_entries - 1, batch_size)
         state0_batch = []
         reward_batch = []
         action_batch = []
         terminal1_batch = []
         state1_batch = []
         # for e in experiences:
-        idxs = np.array(list(range(1,self.nb_entries - 1)))
-        batch_idxs = np.random.choice(idxs,batch_size)
 
 
         for i in batch_idxs:
@@ -221,6 +221,13 @@ class SequentialMemory(Memory):
             self.rewards.append(reward)
             self.terminals.append(terminal)
 
+    def reset(self):
+        self.actions = []
+        self.rewards = []
+        self.terminals = []
+        self.observations = []
+
+
     @property
     def nb_entries(self):
         return len(self.observations)
@@ -229,3 +236,40 @@ class SequentialMemory(Memory):
         config = super(SequentialMemory, self).get_config()
         config['limit'] = self.limit
         return config
+
+class RecurrentExperienceReplayMemory:
+    def __init__(self, capacity, sequence_length=64):
+        self.capacity = capacity
+        self.memory = []
+        self.seq_length = sequence_length
+
+    def push(self, transition):
+        self.memory.append(transition)
+        if len(self.memory) > self.capacity:
+            del self.memory[0]
+
+    def sample(self, batch_size):
+        finish = random.sample(range(self.seq_length + 1, len(self.memory)), batch_size)
+        begin = [x - self.seq_length for x in finish]
+        samp = []
+        for start, end in zip(begin, finish):
+            # correct for sampling near beginning
+            final = self.memory[max(start + 1, 0):end + 1]
+
+            # correct for sampling across episodes
+            for i in range(len(final) - 2, -1, -1):
+                if final[i][3] is None:
+                    final = final[i + 1:]
+                    break
+
+            # pad beginning to account for corrections
+            while (len(final) < self.seq_length):
+                final = [(np.zeros_like(self.memory[0][0]), 0, 0, np.zeros_like(self.memory[0][3]))] + final
+
+            samp += final
+
+        # returns flattened version
+        return samp, None, None
+
+    def __len__(self):
+        return len(self.memory)

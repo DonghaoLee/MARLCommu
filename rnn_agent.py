@@ -12,6 +12,12 @@ class RNNAgent(nn.Module):
         self.rnn = nn.GRUCell(rnn_hidden_dim, rnn_hidden_dim)
         self.fc2 = nn.Linear(rnn_hidden_dim, n_actions)
 
+        #for name, p in self.named_parameters():
+        #    if name.find('bias') != -1:
+        #        nn.init.constant_(p, 0.)
+        #    else:
+        #        nn.init.uniform_(p, a=-0.01, b=0.01)
+
     def init_hidden(self):
         # make hidden states on same device as model
         return self.fc1.weight.new(1, self.rnn_hidden_dim).zero_()

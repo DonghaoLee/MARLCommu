@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
+from torch.optim.lr_scheduler import StepLR
 
 from ddpg_model import (Actor, Critic)
 from memory import  SequentialMemory
@@ -13,6 +14,49 @@ from utils.ddpg_utils import *
 # from ipdb import set_trace as debug
 
 criterion = nn.MSELoss()
+
+class RandomProcess(object):
+    def reset_states(self):
+        pass
+
+class AnnealedGaussianProcess(RandomProcess):
+    def __init__(self, mu, sigma, sigma_min, n_steps_annealing):
+        self.mu = mu
+        self.sigma = sigma
+        self.n_steps = 0
+
+        if sigma_min is not None:
+            self.m = -float(sigma - sigma_min) / float(n_steps_annealing)
+            self.c = sigma
+            self.sigma_min = sigma_min
+        else:
+            self.m = 0.
+            self.c = sigma
+            self.sigma_min = sigma
+
+    @property
+    def current_sigma(self):
+        sigma = max(self.sigma_min, self.m * float(self.n_steps) + self.c)
+        return sigma
+
+class OrnsteinUhlenbeckProcess(AnnealedGaussianProcess):
+    def __init__(self, theta, mu=0., sigma=1., dt=1e-2, x0=None, size=1, sigma_min=None, n_steps_annealing=1000):
+        super(OrnsteinUhlenbeckProcess, self).__init__(mu=mu, sigma=sigma, sigma_min=sigma_min, n_steps_annealing=n_steps_annealing)
+        self.theta = theta
+        self.mu = mu
+        self.dt = dt
+        self.x0 = x0
+        self.size = size
+        self.reset_states()
+
+    def sample(self):
+        x = self.x_prev + self.theta * (self.mu - self.x_prev) * self.dt + self.current_sigma * np.sqrt(self.dt) * np.random.normal(size=self.size)
+        self.x_prev = x
+        self.n_steps += 1
+        return x
+
+    def reset_states(self):
+        self.x_prev = self.x0 if self.x0 is not None else np.zeros(self.size)
 
 class DDPG(object):
     def __init__(self, nb_states, nb_actions, **kwargs):
@@ -33,6 +77,7 @@ class DDPG(object):
         self.actor_target = Actor(self.nb_states, self.nb_actions, **net_cfg)
         self.actor_optim  = Adam(self.actor.parameters(), lr=kwargs["prate"])
 
+
         self.critic = Critic(self.nb_states, self.nb_actions, **net_cfg)
         self.critic_target = Critic(self.nb_states, self.nb_actions, **net_cfg)
         self.critic_optim  = Adam(self.critic.parameters(), lr=kwargs["rate"])
@@ -42,6 +87,8 @@ class DDPG(object):
 
         #Create replay buffer
         self.memory = SequentialMemory(limit=kwargs["rmsize"], window_length=kwargs["window_length"])
+        self.random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=kwargs["ou_theta"], mu=kwargs["ou_mu"],
+                                                       sigma=kwargs["ou_sigma"])
 
         # Hyper-parameters
         self.batch_size = kwargs["bsize"]
@@ -64,9 +111,9 @@ class DDPG(object):
         next_state_batch, terminal_batch = self.memory.sample_and_split(self.batch_size)
 
 
-        reward_mean = np.mean(reward_batch)
-        reward_std = np.std(reward_batch)
-        reward_batch = (reward_batch - reward_mean)/reward_std
+        # reward_mean = np.mean(reward_batch)
+        # reward_std = np.std(reward_batch)
+        # reward_batch = (reward_batch - reward_mean)/reward_std
 
         # Prepare for the target q batch
         next_q_values = self.critic_target([
@@ -105,7 +152,14 @@ class DDPG(object):
 
         return value_loss,policy_loss
 
+
+    def set_lr(self,prate, rate):
+
+        self.critic_optim = Adam(self.critic.parameters(), lr=rate)
+        self.actor_optim = Adam(self.actor.parameters(), lr=prate)
+
     def eval(self):
+        self.is_training = False
         self.actor.eval()
         self.actor_target.eval()
         self.critic.eval()
@@ -132,7 +186,7 @@ class DDPG(object):
         action = to_numpy(
             self.actor(s_t)
         )
-        action += self.is_training*max(self.epsilon, 0)
+        action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
         action = np.clip(action, -1., 1.)
 
         if decay_epsilon:
@@ -144,15 +198,15 @@ class DDPG(object):
     def reset(self, obs):
         self.s_t = obs
 
-    def load_weights(self, output):
+    def load_weights(self, output, step = "origin"):
         if output is None: return
 
         self.actor.load_state_dict(
-            torch.load('{}/actor.pkl'.format(output))
+            torch.load(f'{output}/actor_{step}.pkl')
         )
 
-        self.critic.loadself_state_dict(
-            torch.load('{}/critic.pkl'.format(output))
+        self.critic.load_state_dict(
+            torch.load(f'{output}/critic_{step}.pkl')
         )
 
 
@@ -170,3 +224,5 @@ class DDPG(object):
         torch.manual_seed(s)
         if USE_CUDA:
             torch.cuda.manual_seed(s)
+
+

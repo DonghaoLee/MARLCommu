@@ -18,6 +18,7 @@ class Actor(nn.Module):
         self.fc3 = nn.Linear(hidden2, nb_actions)
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
+        self.soft_max = nn.Softmax()
         self.init_weights(init_w)
 
     def init_weights(self, init_w):

@@ -73,6 +73,12 @@ def APgen(area_range, apnum, min_dist, paint = False):
 
     pos = np.zeros((apnum,2))
 
+    # if apnum == 2:
+    #     pos[0,0] = 200
+    #     pos[0,1] = 200
+    #     pos[1,0] = 300
+    #     pos[1,1] = 300
+
     for i in range(apnum):
 
         while True:
